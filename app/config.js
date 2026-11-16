@@ -23,5 +23,9 @@ var CONFIG = {
   // Tecla enviada quando você aperta Voltar/Return na Home Casa.
   // 'KEY_EXIT' fecha a Home e a TV volta para a última fonte (TV ao vivo ou HDMI).
   // Alternativa: 'KEY_TV' (vai sempre para a TV ao vivo).
-  teclaVoltar: 'KEY_EXIT'
+  teclaVoltar: 'KEY_EXIT',
+
+  // true: quando você fecha um app aberto pela Home (Voltar/Sair dentro dele),
+  // a Home reabre sozinha em alguns segundos. false: desliga isso.
+  voltarParaHome: true
 };

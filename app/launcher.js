@@ -164,7 +164,8 @@
     if (tile._id === undefined) return setStatus('Carregando a lista de apps…');
     if (!tile._id) return setStatus(tile.nome + ' não está instalado nesta TV');
     setStatus('Abrindo ' + tile.nome + '…');
-    service('/api/launch', { id: tile._id }).catch(function (err) {
+    var voltar = !(window.CONFIG && CONFIG.voltarParaHome === false);
+    service('/api/launch', { id: tile._id, voltar: voltar }).catch(function (err) {
       setStatus('Não abriu ' + tile.nome + ' (' + (err && err.message ? err.message : 'erro') + ')');
     });
   }

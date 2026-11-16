@@ -7,7 +7,9 @@
  *   GET  /api/status   diagnóstico (versão do Node, se há tizen, remoto pronto)
  *   GET  /api/apps     apps instalados: [{ id, name, show }]  (também pela rede,
  *                      só leitura, para descobrir os IDs no PC)
- *   POST /api/launch   { id }   abre um app            (só 127.0.0.1)
+ *   GET  /api/running  apps rodando agora (diagnóstico, só leitura)
+ *   POST /api/launch   { id, voltar }  abre um app; com voltar=true, quando o
+ *                      app fechar o service reabre o TizenBrew (só 127.0.0.1)
  *   POST /api/key      { key }  envia tecla do controle (só 127.0.0.1)
  *
  * Teclas vão pelo controle remoto de rede da Samsung:
@@ -195,6 +197,91 @@
     });
   }
 
+  /* ---------- volta automática para a Home ---------- */
+
+  // Quando a Home abre um app, vigiamos se ele continua rodando. Quando ele
+  // fecha (Voltar/Sair dentro do app), reabrimos o TizenBrew, que reabre a Home
+  // (estando aberta em segundo plano ou como módulo de auto-launch).
+  var STORE_APP = /^[A-Za-z0-9]{10}\.[A-Za-z0-9_-]+$/;
+  var POLL_MS = 2000;
+  var NEVER_SEEN_GIVE_UP_MS = 30000;
+  var watch = null;       // { appId, since, seen, others: {appId: true} }
+  var lastReturn = null;  // diagnóstico: { at, appId, action }
+
+  function tizenBrewAppId() {
+    try {
+      var pkg = tizen.application.getAppInfo().packageId;
+      if (pkg) return pkg + '.TizenBrewStandalone';
+    } catch (e) { /* cai no padrão */ }
+    return 'xvvl3S1bvH.TizenBrewStandalone';
+  }
+
+  function runningApps() {
+    return new Promise(function (resolve, reject) {
+      if (!HAS_TIZEN) return reject(new Error('API tizen indisponível (fora da TV)'));
+      tizen.application.getAppsContext(function (ctxs) {
+        resolve(ctxs.map(function (c) { return c.appId; }));
+      }, function (err) { reject(new Error(err && err.message ? err.message : 'getAppsContext falhou')); });
+    });
+  }
+
+  function packageOf(appId) { return String(appId).split('.')[0]; }
+
+  // Apps de loja que estão rodando e não são o vigiado nem o TizenBrew.
+  function otherStoreApps(ids, watchedId) {
+    var tbPkg = packageOf(tizenBrewAppId());
+    var out = {};
+    ids.forEach(function (id) {
+      if (!STORE_APP.test(id)) return;
+      if (packageOf(id) === tbPkg || packageOf(id) === packageOf(watchedId)) return;
+      out[id] = true;
+    });
+    return out;
+  }
+
+  function startWatch(appId) {
+    watch = { appId: appId, since: Date.now(), seen: false, others: {} };
+  }
+
+  function pollWatch() {
+    if (!watch) return;
+    var w = watch;
+    runningApps().then(function (ids) {
+      if (watch !== w) return;
+      var running = ids.indexOf(w.appId) !== -1;
+      if (running) {
+        if (!w.seen) { w.seen = true; w.others = otherStoreApps(ids, w.appId); }
+        return;
+      }
+      if (!w.seen) {
+        if (Date.now() - w.since > NEVER_SEEN_GIVE_UP_MS) {
+          lastReturn = { at: new Date().toISOString(), appId: w.appId, action: 'desistiu: app nunca apareceu rodando' };
+          watch = null;
+        }
+        return;
+      }
+      watch = null;
+      // Se outro app de loja abriu nesse meio-tempo (pela barra da Samsung),
+      // a pessoa está usando ele: não puxamos a Home por cima.
+      var now = otherStoreApps(ids, w.appId);
+      var newer = Object.keys(now).filter(function (id) { return !w.others[id]; });
+      if (newer.length) {
+        lastReturn = { at: new Date().toISOString(), appId: w.appId, action: 'não voltou: outro app aberto (' + newer.join(', ') + ')' };
+        return;
+      }
+      lastReturn = { at: new Date().toISOString(), appId: w.appId, action: 'voltou para a Home' };
+      log(w.appId + ' fechou; reabrindo o TizenBrew');
+      launchApp(tizenBrewAppId()).catch(function (e) {
+        lastReturn.action = 'falhou ao reabrir TizenBrew: ' + e.message;
+      });
+    }, function (e) {
+      lastReturn = { at: new Date().toISOString(), appId: w.appId, action: 'erro lendo apps rodando: ' + e.message };
+      watch = null;
+    });
+  }
+
+  if (HAS_TIZEN) setInterval(pollWatch, POLL_MS);
+
   /* ---------- HTTP ---------- */
 
   function isLocal(req) {
@@ -240,8 +327,16 @@
         tizen: HAS_TIZEN,
         tvHost: TV_HOST,
         remoteReady: remote.ready,
-        remoteToken: !!state.remoteToken
+        remoteToken: !!state.remoteToken,
+        watching: watch ? { appId: watch.appId, seen: watch.seen } : null,
+        lastReturn: lastReturn
       });
+    }
+    // Diagnóstico só de leitura: apps rodando agora.
+    if (route === 'GET /api/running') {
+      return runningApps().then(function (ids) {
+        send(res, 200, { tizenBrew: tizenBrewAppId(), running: ids });
+      }).catch(fail(res));
     }
     if (route === 'GET /api/apps') {
       return listApps().then(function (apps) { send(res, 200, { apps: apps }); }).catch(fail(res));
@@ -254,7 +349,10 @@
       return readBody(req).then(function (body) {
         var id = String(body.id || '');
         if (!id) throw new Error('id vazio');
-        return launchApp(id).then(function () { send(res, 200, { ok: true }); });
+        return launchApp(id).then(function () {
+          if (body.voltar) startWatch(id); else watch = null;
+          send(res, 200, { ok: true, voltar: !!body.voltar });
+        });
       }).catch(fail(res));
     }
     if (route === 'POST /api/key') {
