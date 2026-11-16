@@ -1,6 +1,6 @@
 {
   "name": "tv-home-casa",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "description": "Home enxuta, sem anúncios, para a Samsung da sala (módulo TizenBrew).",
   "packageType": "app",
   "appName": "Home Casa",

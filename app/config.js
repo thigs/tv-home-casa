@@ -13,11 +13,11 @@
  */
 var CONFIG = {
   tiles: [
-    { nome: 'Disney+',     appId: '', procurar: ['disney'],                  cor: '#0e2a73' },
-    { nome: 'Netflix',     appId: '', procurar: ['netflix'],                 cor: '#9b0a12' },
-    { nome: 'Prime Video', appId: '', procurar: ['prime video', 'amazon'],   cor: '#0a5f8f' },
-    { nome: 'Globoplay',   appId: '', procurar: ['globoplay'],               cor: '#c2381f' },
-    { nome: 'Videogame',   hdmi: 3,                                          cor: '#2c6b35' }
+    { nome: 'Disney+',     appId: 'MCmYXNxgcu.DisneyPlus',              procurar: ['disney'],                cor: '#0e2a73' },
+    { nome: 'Netflix',     appId: 'org.tizen.netflix-app',              procurar: ['netflix'],               cor: '#9b0a12' },
+    { nome: 'Prime Video', appId: 'evKhCgZelL.AmazonIgnitionLauncher2', procurar: ['prime video', 'amazon'], cor: '#0a5f8f' },
+    { nome: 'Globoplay',   appId: 'EUJSYi9GRg.globo',                   procurar: ['globoplay'],             cor: '#c2381f' },
+    { nome: 'Videogame',   hdmi: 3,                                                                                    cor: '#2c6b35' }
   ],
 
   // Tecla enviada quando você aperta Voltar/Return na Home Casa.
