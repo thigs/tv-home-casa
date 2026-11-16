@@ -1,0 +1,19 @@
+{
+  "name": "tv-home-casa",
+  "version": "0.1.0",
+  "description": "Home enxuta, sem anúncios, para a Samsung da sala (módulo TizenBrew).",
+  "packageType": "app",
+  "appName": "Home Casa",
+  "appPath": "app/index.html",
+  "serviceFile": "service/service.js",
+  "keys": [],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/thigs/tv-home-casa.git"
+  },
+  "scripts": {
+    "dev": "python -m http.server 5173 --bind 127.0.0.1",
+    "service": "node service/service.js"
+  },
+  "license": "MIT"
+}
