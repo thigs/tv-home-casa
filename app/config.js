@@ -17,7 +17,7 @@ var CONFIG = {
     { nome: 'Netflix',     appId: '', procurar: ['netflix'],                 cor: '#9b0a12' },
     { nome: 'Prime Video', appId: '', procurar: ['prime video', 'amazon'],   cor: '#0a5f8f' },
     { nome: 'Globoplay',   appId: '', procurar: ['globoplay'],               cor: '#c2381f' },
-    { nome: 'Videogame',   hdmi: 0,                                          cor: '#2c6b35' }
+    { nome: 'Videogame',   hdmi: 3,                                          cor: '#2c6b35' }
   ],
 
   // Tecla enviada quando você aperta Voltar/Return na Home Casa.
