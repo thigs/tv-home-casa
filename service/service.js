@@ -47,10 +47,12 @@
 
   /* ---------- estado salvo (token do controle remoto) ---------- */
 
-  var state = { remoteToken: '' };
+  var state = { remoteToken: '', acordarNaHome: true, events: [] };
   try {
     var saved = JSON.parse(fs.readFileSync(STATE_FILE, 'utf8'));
     if (typeof saved.remoteToken === 'string') state.remoteToken = saved.remoteToken;
+    if (saved.acordarNaHome === false) state.acordarNaHome = false;
+    if (saved.events && saved.events.length) state.events = saved.events.slice(-15);
   } catch (e) { /* primeira vez */ }
 
   function saveState() {
@@ -282,6 +284,40 @@
 
   if (HAS_TIZEN) setInterval(pollWatch, POLL_MS);
 
+  /* ---------- abrir a Home quando a TV liga ---------- */
+
+  // Desligada pelo controle, a TV entra em espera (Instant On) e este processo
+  // fica congelado. Ao ligar, o relógio "pula": se o intervalo entre dois
+  // ticks passar de WAKE_GAP_MS, a TV acabou de acordar -> reabrimos o TizenBrew.
+  var TICK_MS = 5000;
+  var WAKE_GAP_MS = 60000;
+  var startedAt = Date.now();
+  var lastTick = Date.now();
+
+  function addEvent(text) {
+    state.events = (state.events || []).concat([new Date().toISOString() + ' ' + text]).slice(-15);
+    saveState();
+  }
+
+  function onTick() {
+    var now = Date.now();
+    var gap = now - lastTick;
+    lastTick = now;
+    if (gap < WAKE_GAP_MS) return;
+    if (state.acordarNaHome === false) return addEvent('acordou após ' + Math.round(gap / 1000) + ' s (abrir Home desligado)');
+    watch = null;
+    addEvent('acordou após ' + Math.round(gap / 1000) + ' s; abrindo a Home');
+    // Pequena espera para a TV terminar de ligar a tela e a rede.
+    setTimeout(function () {
+      launchApp(tizenBrewAppId()).catch(function (e) { addEvent('falhou ao abrir TizenBrew: ' + e.message); });
+    }, 3000);
+  }
+
+  if (HAS_TIZEN) {
+    setInterval(onTick, TICK_MS);
+    addEvent('service iniciado');
+  }
+
   /* ---------- HTTP ---------- */
 
   function isLocal(req) {
@@ -329,7 +365,10 @@
         remoteReady: remote.ready,
         remoteToken: !!state.remoteToken,
         watching: watch ? { appId: watch.appId, seen: watch.seen } : null,
-        lastReturn: lastReturn
+        lastReturn: lastReturn,
+        startedAt: new Date(startedAt).toISOString(),
+        acordarNaHome: state.acordarNaHome !== false,
+        events: state.events || []
       });
     }
     // Diagnóstico só de leitura: apps rodando agora.
@@ -353,6 +392,14 @@
           if (body.voltar) startWatch(id); else watch = null;
           send(res, 200, { ok: true, voltar: !!body.voltar });
         });
+      }).catch(fail(res));
+    }
+    // A página manda as preferências do config.js ao abrir.
+    if (route === 'POST /api/prefs') {
+      return readBody(req).then(function (body) {
+        var want = body.acordarNaHome !== false;
+        if ((state.acordarNaHome !== false) !== want) { state.acordarNaHome = want; saveState(); }
+        send(res, 200, { ok: true, acordarNaHome: want });
       }).catch(fail(res));
     }
     if (route === 'POST /api/key') {

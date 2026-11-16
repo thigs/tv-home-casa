@@ -193,6 +193,8 @@
 
   render();
   if (MOCK) setStatus('Modo de teste no PC (sem TV)', true);
+  service('/api/prefs', { acordarNaHome: !(window.CONFIG && CONFIG.abrirHomeAoLigar === false) })
+    .catch(function () { /* o service pode ainda estar subindo; não é crítico */ });
   loadApps().then(resolveTiles, function (err) {
     setStatus(err.answered ? 'Erro ao listar apps: ' + err.message
       : 'Serviço da Home Casa não respondeu. Abra de novo pelo TizenBrew.', true);

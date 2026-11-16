@@ -27,5 +27,8 @@ var CONFIG = {
 
   // true: quando você fecha um app aberto pela Home (Voltar/Sair dentro dele),
   // a Home reabre sozinha em alguns segundos. false: desliga isso.
-  voltarParaHome: true
+  voltarParaHome: true,
+
+  // true: quando a TV liga (saindo da espera), a Home abre sozinha.
+  abrirHomeAoLigar: true
 };
